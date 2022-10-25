@@ -1,0 +1,59 @@
+#!/bin/bash
+
+local WATCH=0
+local REPO_PATH=$1
+shift
+local TEST_FOLDER="src/tests"
+
+run_tests() {
+    python3 -m unittest discover -s $TEST_FOLDER -p '*.py'
+    if [[ $WATCH -ne 0 ]]; then
+        printf '\nWatching for changes...\n\n'
+        fswatch -or src -e ".*" -i "\\.py$" | xargs -n1 -I{} bash -c \
+            "python3 -m unittest discover -s $TEST_FOLDER -p '*.py' && printf '\nWatching for changes...\n\n'"
+    fi
+}
+
+usage() {
+    cat <<EOF
+Usage:
+
+blh_python_tests [REPO_PATH] [...OPTIONS]
+
+Options:
+--help          Show this message
+--test-folder   Test folder relative to repository path
+--watch         Start a file watcher and run tests on every file change
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --help | -h)
+            usage
+            return 0
+            ;;
+        --watch | -w)
+            WATCH=1
+            shift
+            ;;
+        --test-folder | -t)
+            TEST_FOLDER=$2
+            shift
+            shift
+            ;;
+        -* | --*)
+            echo "Unknown option $1"
+            exit 1
+            ;;
+        *)
+            echo "Unknown command $1"
+            exit 1
+            ;;
+    esac
+done
+
+pushd $REPO_PATH > /dev/null
+trap "popd > /dev/null" INT TERM
+
+run_tests
