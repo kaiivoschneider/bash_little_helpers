@@ -18,3 +18,9 @@ Run:
 ```
 
 Reload your shell
+
+To add custom script paths run:
+
+```
+blh_add_scripts <SCRIPT_PATH>
+```

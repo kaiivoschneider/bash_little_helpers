@@ -1,0 +1,19 @@
+#!/bin/bash
+
+SCRIPTS_FOLDER=$1
+
+if [ ! -d $SCRIPTS_FOLDER ]; then
+    echo "[ERROR] Folder '$SCRIPTS_FOLDER' does not exist"
+    exit 1
+fi
+
+PATH_LINE="export PATH=\"$SCRIPTS_FOLDER:\$PATH\""
+PATH_FILE=$HELPERS_DIRECTORY/.path
+
+if grep -qxF "$PATH_LINE" $PATH_FILE ; then
+    echo "[INFO] Scripts folder $SCRIPTS_FOLDER already exists in $PATH_FILE, skipping"
+    exit 0
+fi
+
+echo "[INFO] Adding $SCRIPTS_FOLDER to $PATH_FILE"
+echo $PATH_LINE >> $HELPERS_DIRECTORY/.path
