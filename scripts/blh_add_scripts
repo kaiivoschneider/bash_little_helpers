@@ -1,19 +1,78 @@
 #!/bin/bash
 
-SCRIPTS_FOLDER=$1
+_usage() {
+    cat <<EOF
+Usage:
+
+blh_add_scripts [SCRIPT_PATH] [...OPTIONS]
+
+Options:
+--help | -h         Show this message
+--language | -l     Language of scripts in folder
+EOF
+}
+
+LANGUAGE=bash
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+    -h | --help)
+        _usage
+        exit 0
+        ;;
+    -l | --language)
+        LANGUAGE="$2"
+        shift
+        shift
+        ;;
+    -* | --*)
+        echo "Unknown option $1"
+        exit 1
+        ;;
+    *)
+        POSITIONAL_ARGS+=("$1")
+        shift
+        ;;
+    esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}"
+SCRIPTS_FOLDER="${POSITIONAL_ARGS[0]}"
+
+case $LANGUAGE in
+bash | js | python )
+    LANGUAGE_FILE=".$LANGUAGE"
+    ;;
+*)
+    echo "[ERROR] Unsupported language $LANGUAGE"
+    exit 1
+    ;;
+esac
 
 if [ ! -d $SCRIPTS_FOLDER ]; then
     echo "[ERROR] Folder '$SCRIPTS_FOLDER' does not exist"
     exit 1
 fi
 
-PATH_LINE="export PATH=\"$SCRIPTS_FOLDER:\$PATH\""
-PATH_FILE=$HELPERS_DIRECTORY/.path
+PATHS_FOLDER=$HELPERS_DIRECTORY/.paths
+if [[ ! -d $PATHS_FOLDER ]]; then
+    echo "[INFO] Creating $PATHS_FOLDER"
+    mkdir $PATHS_FOLDER
+fi
 
-if grep -qxF "$PATH_LINE" $PATH_FILE ; then
-    echo "[INFO] Scripts folder $SCRIPTS_FOLDER already exists in $PATH_FILE, skipping"
+LANGUAGE_PATHS_FILE=$PATHS_FOLDER/$LANGUAGE_FILE
+if [[ ! -f $LANGUAGE_PATHS_FILE ]]; then
+    echo "[INFO] Creating $LANGUAGE_PATHS_FILE"
+    touch $LANGUAGE_PATHS_FILE
+fi
+
+if grep -qxF "$SCRIPTS_FOLDER" $LANGUAGE_PATHS_FILE; then
+    echo "[INFO] Scripts folder $SCRIPTS_FOLDER already exists in $LANGUAGE_PATHS_FILE, skipping"
     exit 0
 fi
 
-echo "[INFO] Adding $SCRIPTS_FOLDER to $PATH_FILE"
-echo $PATH_LINE >> $HELPERS_DIRECTORY/.path
+eval "bash -c 'blh_manage_dependencies_$LANGUAGE'"
+
+echo "[INFO] Adding $SCRIPTS_FOLDER to $LANGUAGE_PATHS_FILE"
+echo $SCRIPTS_FOLDER >>$LANGUAGE_PATHS_FILE

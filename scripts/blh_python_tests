@@ -1,20 +1,6 @@
 #!/bin/bash
 
-local WATCH=0
-local REPO_PATH=$1
-shift
-local TEST_FOLDER="src/tests"
-
-run_tests() {
-    python3 -m unittest discover -s $TEST_FOLDER -p '*.py'
-    if [[ $WATCH -ne 0 ]]; then
-        printf '\nWatching for changes...\n\n'
-        fswatch -or src -e ".*" -i "\\.py$" | xargs -n1 -I{} bash -c \
-            "python3 -m unittest discover -s $TEST_FOLDER -p '*.py' && printf '\nWatching for changes...\n\n'"
-    fi
-}
-
-usage() {
+_usage() {
     cat <<EOF
 Usage:
 
@@ -27,33 +13,62 @@ Options:
 EOF
 }
 
+REPO_PATH="."
+TEST_FOLDER="src/tests"
+WATCH=0
+
+POSITIONAL_ARGS=()
+
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --help | -h)
-            usage
-            return 0
-            ;;
-        --watch | -w)
-            WATCH=1
-            shift
-            ;;
-        --test-folder | -t)
-            TEST_FOLDER=$2
-            shift
-            shift
-            ;;
-        -* | --*)
-            echo "Unknown option $1"
-            exit 1
-            ;;
-        *)
-            echo "Unknown command $1"
-            exit 1
-            ;;
+    -h | --help)
+        _usage
+        exit 0
+        ;;
+    --watch | -w)
+        WATCH=1
+        shift
+        ;;
+    --test-folder | -t)
+        TEST_FOLDER=$2
+        shift
+        shift
+        ;;
+    -* | --*)
+        echo "Unknown option $1"
+        exit 1
+        ;;
+    *)
+        POSITIONAL_ARGS+=("$1")
+        shift
+        ;;
     esac
 done
+
+set -- "${POSITIONAL_ARGS[@]}"
+
+REPO_PATH="${POSITIONAL_ARGS[0]}"
+
+if [ ! -d $REPO_PATH ]; then
+    echo "[ERROR] Repository '$REPO_PATH' does not exist"
+    exit 1
+fi
+
+if [ ! -d $REPO_PATH/$TEST_FOLDER ]; then
+    echo "[ERROR] Test folder '$TEST_FOLDER' does not exist"
+    exit 1
+fi
+
+_run_tests() {
+    python3 -m unittest discover -s $TEST_FOLDER -p '*.py'
+    if [[ $WATCH -ne 0 ]]; then
+        printf '\nWatching for changes...\n\n'
+        fswatch -or src -e ".*" -i "\\.py$" | xargs -n1 -I{} bash -c \
+            "python3 -m unittest discover -s $TEST_FOLDER -p '*.py' && printf '\nWatching for changes...\n\n'"
+    fi
+}
 
 pushd $REPO_PATH > /dev/null
 trap "popd > /dev/null" INT TERM
 
-run_tests
+_run_tests
